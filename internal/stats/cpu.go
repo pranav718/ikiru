@@ -2,7 +2,6 @@ package stats
 
 import (
 	"strings"
-	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 )
@@ -13,19 +12,16 @@ type CPUStats struct {
 }
 
 func FetchCPU() (CPUStats, error) {
-	info, err := cpu.Info()
-	if err != nil {
-		return CPUStats{}, err
-	}
-
 	model := "Unknown CPU"
-	if len(info) > 0 && strings.TrimSpace(info[0].ModelName) != "" {
-		model = strings.TrimSpace(info[0].ModelName)
+	if info, err := cpu.Info(); err == nil && len(info) > 0 {
+		if trimmed := strings.TrimSpace(info[0].ModelName); trimmed != "" {
+			model = trimmed
+		}
 	}
 
-	usage, err := cpu.Percent(120*time.Millisecond, true)
+	usage, err := cpu.Percent(0, true)
 	if err != nil {
-		return CPUStats{}, err
+		return CPUStats{Model: model}, err
 	}
 
 	return CPUStats{
