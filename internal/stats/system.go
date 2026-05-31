@@ -20,9 +20,10 @@ type SystemStats struct {
 	Processes int
 }
 
-func FetchSystem() (SystemStats, error) {
+func FetchSystem() SystemStats {
 	system := SystemStats{
 		OS:        runtime.GOOS,
+		Kernel:    fallbackKernel(),
 		Hostname:  fallbackHostname(),
 		Uptime:    "unknown",
 		Shell:     currentShell(),
@@ -32,8 +33,12 @@ func FetchSystem() (SystemStats, error) {
 	info, err := host.Info()
 	if err == nil {
 		system.OS = formatOS(info)
-		system.Kernel = info.KernelVersion
-		system.Hostname = info.Hostname
+		if strings.TrimSpace(info.KernelVersion) != "" {
+			system.Kernel = info.KernelVersion
+		}
+		if strings.TrimSpace(info.Hostname) != "" {
+			system.Hostname = info.Hostname
+		}
 		system.Uptime = formatUptime(info.Uptime)
 	}
 
@@ -43,7 +48,7 @@ func FetchSystem() (SystemStats, error) {
 	}
 	system.Processes = len(pids)
 
-	return system, nil
+	return system
 }
 
 func formatOS(info *host.InfoStat) string {
@@ -66,6 +71,7 @@ func formatUptime(seconds uint64) string {
 	hours := seconds / 3600
 	seconds %= 3600
 	minutes := seconds / 60
+	seconds %= 60
 
 	parts := []string{}
 	switch {
@@ -77,13 +83,24 @@ func formatUptime(seconds uint64) string {
 		if minutes > 0 {
 			parts = append(parts, formatDurationPart(minutes, "m"))
 		}
+		if seconds > 0 {
+			parts = append(parts, formatDurationPart(seconds, "s"))
+		}
 	case hours > 0:
 		parts = append(parts, formatDurationPart(hours, "h"))
 		if minutes > 0 {
 			parts = append(parts, formatDurationPart(minutes, "m"))
 		}
-	default:
+		if seconds > 0 {
+			parts = append(parts, formatDurationPart(seconds, "s"))
+		}
+	case minutes > 0:
 		parts = append(parts, formatDurationPart(minutes, "m"))
+		if seconds > 0 {
+			parts = append(parts, formatDurationPart(seconds, "s"))
+		}
+	default:
+		parts = append(parts, formatDurationPart(seconds, "s"))
 	}
 	return strings.Join(parts, " ")
 }
@@ -109,4 +126,12 @@ func fallbackHostname() string {
 		return "unknown"
 	}
 	return hostname
+}
+
+func fallbackKernel() string {
+	kernel, err := host.KernelVersion()
+	if err != nil || strings.TrimSpace(kernel) == "" {
+		return "unknown"
+	}
+	return kernel
 }
