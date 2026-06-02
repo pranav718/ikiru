@@ -48,9 +48,22 @@ func FetchNetwork(tracker *NetworkTracker) (NetworkStats, error) {
 		elapsed = 1
 	}
 
+	var deltaIn, deltaOut uint64
+	if currentIn >= tracker.lastIn {
+		deltaIn = currentIn - tracker.lastIn
+	} else {
+		deltaIn = 0
+	}
+
+	if currentOut >= tracker.lastOut {
+		deltaOut = currentOut - tracker.lastOut
+	} else {
+		deltaOut = 0
+	}
+
 	stats := NetworkStats{
-		BytesInPerSec:  float64(currentIn-tracker.lastIn) / elapsed,
-		BytesOutPerSec: float64(currentOut-tracker.lastOut) / elapsed,
+		BytesInPerSec:  float64(deltaIn) / elapsed,
+		BytesOutPerSec: float64(deltaOut) / elapsed,
 	}
 
 	tracker.lastIn = currentIn
