@@ -154,3 +154,30 @@ func color(cfg Config, fg lipgloss.Color) lipgloss.Color {
 	}
 	return fg
 }
+
+func RenderHelp(cfg Config) string {
+	title := style(cfg, theme.CrystalBlue).Bold(true).Render("  keybindings")
+	sep := style(cfg, theme.SumiInk4).Render("  ─────────────────────────")
+
+	keys := []struct {
+		key  string
+		desc string
+	}{
+		{"a", "cycle ascii art (pulse > os > none)"},
+		{"c", "toggle compact mode"},
+		{"n", "toggle no-color mode"},
+		{"+/-", "adjust refresh interval"},
+		{"?", "close this help"},
+		{"q", "quit"},
+	}
+
+	lines := []string{"", title, sep}
+	for _, k := range keys {
+		keyStr := style(cfg, theme.SurimiOrange).Bold(true).Render(fmt.Sprintf("  %-6s", k.key))
+		descStr := style(cfg, theme.FujiWhite).Render(k.desc)
+		lines = append(lines, keyStr+descStr)
+	}
+	lines = append(lines, sep, "")
+
+	return strings.Join(lines, "\n")
+}

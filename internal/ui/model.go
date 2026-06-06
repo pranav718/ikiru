@@ -2,6 +2,7 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,10 +27,11 @@ type Snapshot struct {
 }
 
 type Model struct {
-	cfg     Config
-	snap    Snapshot
-	tracker stats.NetworkTracker
-	err     error
+	cfg      Config
+	snap     Snapshot
+	tracker  stats.NetworkTracker
+	err      error
+	showHelp bool
 }
 
 type tickMsg time.Time
@@ -61,6 +63,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "?":
+			m.showHelp = !m.showHelp
+		case "a":
+			m.cfg.ASCIIStyle = nextASCIIStyle(m.cfg.ASCIIStyle)
+		case "c":
+			m.cfg.Compact = !m.cfg.Compact
+		case "n":
+			m.cfg.NoColor = !m.cfg.NoColor
+		case "+", "=", "]":
+			if m.cfg.Interval < 10*time.Second {
+				m.cfg.Interval += time.Second
+			}
+			return m, tea.ClearScreen
+		case "-", "[":
+			if m.cfg.Interval > time.Second {
+				m.cfg.Interval -= time.Second
+			}
+			return m, tea.ClearScreen
 		}
 	case tickMsg:
 		snap, err := FetchSnapshot(&m.tracker)
@@ -72,7 +92,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
-	return RenderLayout(m.snap, m.cfg) + "\n"
+	if m.showHelp {
+		return RenderHelp(m.cfg) + "\n"
+	}
+	hint := fmt.Sprintf("\n  ? help  ·  %ds refresh", int(m.cfg.Interval.Seconds()))
+	return RenderLayout(m.snap, m.cfg) + hint + "\n"
 }
 
 func FetchSnapshot(tracker *stats.NetworkTracker) (Snapshot, error) {
@@ -129,4 +153,15 @@ func normalizeConfig(cfg Config) Config {
 		cfg.ASCIIStyle = ASCIIStylePulse
 	}
 	return cfg
+}
+
+func nextASCIIStyle(current string) string {
+	switch current {
+	case ASCIIStylePulse:
+		return ASCIIStyleOS
+	case ASCIIStyleOS:
+		return ASCIIStyleNone
+	default:
+		return ASCIIStylePulse
+	}
 }
