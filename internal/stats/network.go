@@ -7,8 +7,8 @@ import (
 )
 
 type NetworkStats struct {
-	BytesInPerSec  float64
-	BytesOutPerSec float64
+	BytesInPerSec  float64 `json:"bytes_in_per_sec"`
+	BytesOutPerSec float64 `json:"bytes_out_per_sec"`
 }
 
 type NetworkTracker struct {

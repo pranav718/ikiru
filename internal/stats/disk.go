@@ -7,10 +7,10 @@ import (
 )
 
 type DiskStats struct {
-	Path        string
-	Used        uint64
-	Total       uint64
-	UsedPercent float64
+	Path        string  `json:"path"`
+	Used        uint64  `json:"used"`
+	Total       uint64  `json:"total"`
+	UsedPercent float64 `json:"used_percent"`
 }
 
 func FetchDisk() (DiskStats, error) {

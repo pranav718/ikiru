@@ -9,10 +9,10 @@ import (
 var ErrBatteryUnavailable = errors.New("battery unavailable")
 
 type BatteryStats struct {
-	Percent  float64
-	Charging bool
-	State    string
-	Present  bool
+	Percent  float64 `json:"percent"`
+	Charging bool    `json:"charging"`
+	State    string  `json:"state"`
+	Present  bool    `json:"present"`
 }
 
 var (

@@ -7,8 +7,8 @@ import (
 )
 
 type CPUStats struct {
-	Model string
-	Cores []float64
+	Model string    `json:"model"`
+	Cores []float64 `json:"cores"`
 }
 
 func FetchCPU() (CPUStats, error) {

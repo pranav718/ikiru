@@ -12,12 +12,12 @@ import (
 )
 
 type SystemStats struct {
-	OS        string
-	Kernel    string
-	Hostname  string
-	Uptime    string
-	Shell     string
-	Processes int
+	OS        string `json:"os"`
+	Kernel    string `json:"kernel"`
+	Hostname  string `json:"hostname"`
+	Uptime    string `json:"uptime"`
+	Shell     string `json:"shell"`
+	Processes int    `json:"processes"`
 }
 
 func FetchSystem() SystemStats {
