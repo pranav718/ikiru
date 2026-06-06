@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -39,6 +40,19 @@ func newRootCommand() *cobra.Command {
 
 			cfg.Interval = time.Duration(intervalSeconds) * time.Second
 
+			if cfg.JSON {
+				snap, err := ui.RenderOnceSnapshot(cfg)
+				if err != nil {
+					return err
+				}
+				data, err := json.MarshalIndent(snap, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Println(string(data))
+				return nil
+			}
+
 			if cfg.Once {
 				view, err := ui.RenderOnce(cfg)
 				fmt.Println(view)
@@ -55,6 +69,7 @@ func newRootCommand() *cobra.Command {
 	rootCmd.Flags().BoolVar(&cfg.NoColor, "no-color", false, "strip all terminal colors")
 	rootCmd.Flags().BoolVar(&cfg.Compact, "compact", false, "render condensed stats without ASCII art")
 	rootCmd.Flags().StringVar(&cfg.ASCIIStyle, "ascii", ui.ASCIIStylePulse, "ASCII art style: pulse, os, none")
+	rootCmd.Flags().BoolVar(&cfg.JSON, "json", false, "output snapshot as JSON and exit")
 
 	return rootCmd
 }
