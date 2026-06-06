@@ -15,23 +15,27 @@ type Config struct {
 	NoColor    bool
 	Compact    bool
 	ASCIIStyle string
+	JSON       bool
 }
 
 type Snapshot struct {
-	System  stats.SystemStats
-	CPU     stats.CPUStats
-	Memory  stats.MemoryStats
-	Disk    stats.DiskStats
-	Network stats.NetworkStats
-	Battery *stats.BatteryStats
+	System   stats.SystemStats    `json:"system"`
+	CPU      stats.CPUStats       `json:"cpu"`
+	Memory   stats.MemoryStats    `json:"memory"`
+	Disk     stats.DiskStats      `json:"disk"`
+	Network  stats.NetworkStats   `json:"network"`
+	Battery  *stats.BatteryStats  `json:"battery,omitempty"`
+	TopProcs []stats.ProcessInfo  `json:"top_processes,omitempty"`
 }
 
 type Model struct {
-	cfg      Config
-	snap     Snapshot
-	tracker  stats.NetworkTracker
-	err      error
-	showHelp bool
+	cfg       Config
+	snap      Snapshot
+	prevSnap  Snapshot
+	tracker   stats.NetworkTracker
+	err       error
+	showHelp  bool
+	showProcs bool
 }
 
 type tickMsg time.Time
@@ -40,17 +44,25 @@ func NewModel(cfg Config) Model {
 	tracker := stats.NetworkTracker{}
 	snap, err := FetchSnapshot(&tracker)
 	return Model{
-		cfg:     normalizeConfig(cfg),
-		snap:    snap,
-		tracker: tracker,
-		err:     err,
+		cfg:       normalizeConfig(cfg),
+		snap:      snap,
+		prevSnap:  snap,
+		tracker:   tracker,
+		err:       err,
+		showProcs: true,
 	}
 }
 
 func RenderOnce(cfg Config) (string, error) {
 	tracker := stats.NetworkTracker{}
 	snap, _ := FetchSnapshot(&tracker)
-	return RenderLayout(snap, normalizeConfig(cfg)), nil
+	return RenderLayout(snap, snap, normalizeConfig(cfg)), nil
+}
+
+func RenderOnceSnapshot(cfg Config) (Snapshot, error) {
+	tracker := stats.NetworkTracker{}
+	snap, err := FetchSnapshot(&tracker)
+	return snap, err
 }
 
 func (m Model) Init() tea.Cmd {
@@ -71,6 +83,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cfg.Compact = !m.cfg.Compact
 		case "n":
 			m.cfg.NoColor = !m.cfg.NoColor
+		case "p":
+			m.showProcs = !m.showProcs
 		case "+", "=", "]":
 			if m.cfg.Interval < 10*time.Second {
 				m.cfg.Interval += time.Second
@@ -84,6 +98,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tickMsg:
 		snap, err := FetchSnapshot(&m.tracker)
+		m.prevSnap = m.snap
 		m.snap = snap
 		m.err = err
 		return m, tick(m.cfg.Interval)
@@ -96,7 +111,7 @@ func (m Model) View() string {
 		return RenderHelp(m.cfg) + "\n"
 	}
 	hint := fmt.Sprintf("\n  ? help  ·  %ds refresh", int(m.cfg.Interval.Seconds()))
-	return RenderLayout(m.snap, m.cfg) + hint + "\n"
+	return RenderLayout(m.snap, m.prevSnap, m.cfg) + hint + "\n"
 }
 
 func FetchSnapshot(tracker *stats.NetworkTracker) (Snapshot, error) {
@@ -135,6 +150,8 @@ func FetchSnapshot(tracker *stats.NetworkTracker) (Snapshot, error) {
 	} else if err != nil && !errors.Is(err, stats.ErrBatteryUnavailable) {
 		errs = append(errs, err)
 	}
+
+	snapshot.TopProcs = stats.FetchTopProcesses(5)
 
 	return snapshot, errors.Join(errs...)
 }
