@@ -36,7 +36,7 @@ func FetchTopProcesses(n int) []ProcessInfo {
 		return nil
 	}
 
-	var infos []ProcessInfo
+	grouped := make(map[string]*ProcessInfo)
 	for _, p := range procs {
 		name, err := p.Name()
 		if err != nil || name == "" {
@@ -50,12 +50,22 @@ func FetchTopProcesses(n int) []ProcessInfo {
 
 		memPct, _ := p.MemoryPercent()
 
-		infos = append(infos, ProcessInfo{
-			PID:        p.Pid,
-			Name:       name,
-			CPUPercent: cpuPct,
-			MemPercent: memPct,
-		})
+		if existing, ok := grouped[name]; ok {
+			existing.CPUPercent += cpuPct
+			existing.MemPercent += memPct
+		} else {
+			grouped[name] = &ProcessInfo{
+				PID:        p.Pid,
+				Name:       name,
+				CPUPercent: cpuPct,
+				MemPercent: memPct,
+			}
+		}
+	}
+
+	infos := make([]ProcessInfo, 0, len(grouped))
+	for _, info := range grouped {
+		infos = append(infos, *info)
 	}
 
 	sort.Slice(infos, func(i, j int) bool {
