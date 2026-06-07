@@ -36,6 +36,7 @@ type Model struct {
 	err       error
 	showHelp  bool
 	showProcs bool
+	width     int
 }
 
 type tickMsg time.Time
@@ -56,7 +57,7 @@ func NewModel(cfg Config) Model {
 func RenderOnce(cfg Config) (string, error) {
 	tracker := stats.NetworkTracker{}
 	snap, _ := FetchSnapshot(&tracker)
-	return RenderLayout(snap, snap, normalizeConfig(cfg)), nil
+	return RenderLayout(snap, snap, normalizeConfig(cfg), 0, ""), nil
 }
 
 func RenderOnceSnapshot(cfg Config) (Snapshot, error) {
@@ -71,6 +72,8 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -110,8 +113,12 @@ func (m Model) View() string {
 	if m.showHelp {
 		return RenderHelp(m.cfg) + "\n"
 	}
-	hint := fmt.Sprintf("\n  ? help  ·  %ds refresh", int(m.cfg.Interval.Seconds()))
-	return RenderLayout(m.snap, m.prevSnap, m.cfg) + hint + "\n"
+	snap := m.snap
+	if !m.showProcs {
+		snap.TopProcs = nil
+	}
+	hint := fmt.Sprintf("? help  ·  %ds refresh", int(m.cfg.Interval.Seconds()))
+	return RenderLayout(snap, m.prevSnap, m.cfg, m.width, hint) + "\n"
 }
 
 func FetchSnapshot(tracker *stats.NetworkTracker) (Snapshot, error) {

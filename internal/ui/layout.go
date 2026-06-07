@@ -10,8 +10,21 @@ import (
 	"github.com/pranavray/ikiru/internal/theme"
 )
 
-func RenderLayout(snapshot, prevSnap Snapshot, cfg Config) string {
-	statsView := renderStats(snapshot, prevSnap, cfg)
+func RenderLayout(snapshot, prevSnap Snapshot, cfg Config, width int, hint string) string {
+	coresPerRow := 2
+	barWidth := 10
+	if width >= 120 {
+		coresPerRow = 4
+		barWidth = 14
+	} else if width >= 100 {
+		coresPerRow = 3
+		barWidth = 12
+	}
+
+	statsView := renderStats(snapshot, prevSnap, cfg, coresPerRow, barWidth)
+	if hint != "" {
+		statsView += "\n" + hint
+	}
 	if cfg.Compact || cfg.ASCIIStyle == ASCIIStyleNone {
 		return statsView
 	}
@@ -23,18 +36,22 @@ func RenderLayout(snapshot, prevSnap Snapshot, cfg Config) string {
 		art = strings.Repeat("\n", (statsHeight-artHeight)/2) + art
 	}
 
-	left := style(cfg, theme.SpringBlue).Render(art)
+	left := lipgloss.NewStyle().
+		PaddingLeft(2).
+		PaddingRight(1).
+		Render(style(cfg, theme.SpringBlue).Render(art))
 	right := lipgloss.NewStyle().
 		BorderLeft(true).
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(color(cfg, theme.SumiInk4)).
-		PaddingLeft(3).
+		PaddingLeft(1).
 		Render(statsView)
 
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, strings.Repeat(" ", 4), right)
+	return lipgloss.JoinHorizontal(lipgloss.Top, left, right)
 }
 
-func renderStats(snapshot, prevSnap Snapshot, cfg Config) string {
+
+func renderStats(snapshot, prevSnap Snapshot, cfg Config, coresPerRow, barWidth int) string {
 	memTrend := trend(snapshot.Memory.UsedPercent, prevSnap.Memory.UsedPercent, cfg)
 	diskTrend := trend(snapshot.Disk.UsedPercent, prevSnap.Disk.UsedPercent, cfg)
 	netInTrend := trend(snapshot.Network.BytesInPerSec, prevSnap.Network.BytesInPerSec, cfg)
@@ -46,16 +63,16 @@ func renderStats(snapshot, prevSnap Snapshot, cfg Config) string {
 		row("Uptime", snapshot.System.Uptime, cfg),
 		row("Shell", snapshot.System.Shell, cfg),
 		row("CPU", snapshot.CPU.Model, cfg),
-		row("Cores", renderCoreGrid(snapshot.CPU.Cores, prevSnap.CPU.Cores, cfg), cfg),
-		row("Memory", fmt.Sprintf("%s / %s  %s %s", bytes(snapshot.Memory.Used), bytes(snapshot.Memory.Total), bar(snapshot.Memory.UsedPercent, 14, cfg), memTrend), cfg),
-		row("Disk", fmt.Sprintf("%s / %s  %s %s", bytes(snapshot.Disk.Used), bytes(snapshot.Disk.Total), bar(snapshot.Disk.UsedPercent, 14, cfg), diskTrend), cfg),
+		row("Cores", renderCoreGrid(snapshot.CPU.Cores, prevSnap.CPU.Cores, cfg, coresPerRow), cfg),
+		row("Memory", fmt.Sprintf("%s / %s %s %s", bytes(snapshot.Memory.Used), bytes(snapshot.Memory.Total), bar(snapshot.Memory.UsedPercent, barWidth, cfg), memTrend), cfg),
+		row("Disk", fmt.Sprintf("%s / %s %s %s", bytes(snapshot.Disk.Used), bytes(snapshot.Disk.Total), bar(snapshot.Disk.UsedPercent, barWidth, cfg), diskTrend), cfg),
 		row("Network", fmt.Sprintf("↑ %s/s %s  ↓ %s/s %s", bytes(uint64(snapshot.Network.BytesOutPerSec)), netOutTrend, bytes(uint64(snapshot.Network.BytesInPerSec)), netInTrend), cfg),
 		row("Processes", fmt.Sprintf("%d", snapshot.System.Processes), cfg),
 	}
 
 	if snapshot.Battery != nil && snapshot.Battery.Present {
-		batBar := batteryBar(snapshot.Battery.Percent, 10, cfg)
-		lines = append(lines, row("Battery", fmt.Sprintf("%.0f%% %s  %s", snapshot.Battery.Percent, snapshot.Battery.State, batBar), cfg))
+		batBar := batteryBar(snapshot.Battery.Percent, 8, cfg)
+		lines = append(lines, row("Battery", fmt.Sprintf("%.0f%% %s %s", snapshot.Battery.Percent, snapshot.Battery.State, batBar), cfg))
 	}
 
 	if len(snapshot.TopProcs) > 0 {
@@ -71,7 +88,7 @@ func row(label string, value string, cfg Config) string {
 	return style(cfg, theme.OniViolet).Bold(true).Render(labelText) + style(cfg, theme.FujiWhite).Render(value)
 }
 
-func renderCoreGrid(cores, prevCores []float64, cfg Config) string {
+func renderCoreGrid(cores, prevCores []float64, cfg Config, coresPerRow int) string {
 	if len(cores) == 0 {
 		return "unavailable"
 	}
@@ -83,12 +100,12 @@ func renderCoreGrid(cores, prevCores []float64, cfg Config) string {
 			prevUsage = prevCores[i]
 		}
 		t := trend(usage, prevUsage, cfg)
-		items = append(items, fmt.Sprintf("c%d %s %3.0f%%%s", i, bar(usage, 6, cfg), usage, t))
+		items = append(items, fmt.Sprintf("c%d %s%3.0f%%%s", i, bar(usage, 5, cfg), usage, t))
 	}
 
 	rows := []string{}
-	for i := 0; i < len(items); i += 4 {
-		end := i + 4
+	for i := 0; i < len(items); i += coresPerRow {
+		end := i + coresPerRow
 		if end > len(items) {
 			end = len(items)
 		}
@@ -182,16 +199,16 @@ func renderProcesses(procs []stats.ProcessInfo, cfg Config) string {
 	lines := []string{}
 	for i, p := range procs {
 		name := p.Name
-		if len(name) > 20 {
-			name = name[:20]
+		if len(name) > 18 {
+			name = name[:18]
 		}
 
 		var line string
 		if i == 0 {
 			label := style(cfg, theme.OniViolet).Bold(true).Render(fmt.Sprintf("%-10s", "Top"))
-			line = label + style(cfg, theme.FujiWhite).Render(fmt.Sprintf("%-22s %5.1f%%", name, p.CPUPercent))
+			line = label + style(cfg, theme.FujiWhite).Render(fmt.Sprintf("%-20s%5.1f%%", name, p.CPUPercent))
 		} else {
-			line = strings.Repeat(" ", 10) + style(cfg, theme.FujiWhite).Render(fmt.Sprintf("%-22s %5.1f%%", name, p.CPUPercent))
+			line = strings.Repeat(" ", 10) + style(cfg, theme.FujiWhite).Render(fmt.Sprintf("%-20s%5.1f%%", name, p.CPUPercent))
 		}
 		lines = append(lines, line)
 	}
