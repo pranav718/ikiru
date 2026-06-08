@@ -10,7 +10,7 @@ import (
 	"github.com/pranavray/ikiru/internal/theme"
 )
 
-func RenderLayout(snapshot, prevSnap Snapshot, cfg Config, width int, hint string) string {
+func RenderLayout(snapshot, prevSnap Snapshot, cfg Config, width, height int, hint string) string {
 	coresPerRow := 2
 	barWidth := 10
 	if width >= 120 {
@@ -21,7 +21,7 @@ func RenderLayout(snapshot, prevSnap Snapshot, cfg Config, width int, hint strin
 		barWidth = 12
 	}
 
-	statsView := renderStats(snapshot, prevSnap, cfg, coresPerRow, barWidth)
+	statsView := renderStats(snapshot, prevSnap, cfg, coresPerRow, barWidth, height)
 	if hint != "" {
 		statsView += "\n" + hint
 	}
@@ -51,11 +51,13 @@ func RenderLayout(snapshot, prevSnap Snapshot, cfg Config, width int, hint strin
 }
 
 
-func renderStats(snapshot, prevSnap Snapshot, cfg Config, coresPerRow, barWidth int) string {
+func renderStats(snapshot, prevSnap Snapshot, cfg Config, coresPerRow, barWidth, height int) string {
 	memTrend := trend(snapshot.Memory.UsedPercent, prevSnap.Memory.UsedPercent, cfg)
 	diskTrend := trend(snapshot.Disk.UsedPercent, prevSnap.Disk.UsedPercent, cfg)
 	netInTrend := trend(snapshot.Network.BytesInPerSec, prevSnap.Network.BytesInPerSec, cfg)
 	netOutTrend := trend(snapshot.Network.BytesOutPerSec, prevSnap.Network.BytesOutPerSec, cfg)
+
+	coreRows := (len(snapshot.CPU.Cores) + coresPerRow - 1) / coresPerRow
 
 	lines := []string{
 		row("OS", snapshot.System.OS+"  "+snapshot.System.Kernel, cfg),
@@ -71,15 +73,45 @@ func renderStats(snapshot, prevSnap Snapshot, cfg Config, coresPerRow, barWidth 
 	}
 
 	if snapshot.Battery != nil && snapshot.Battery.Present {
-		batBar := batteryBar(snapshot.Battery.Percent, 8, cfg)
-		lines = append(lines, row("Battery", fmt.Sprintf("%.0f%% %s %s", snapshot.Battery.Percent, snapshot.Battery.State, batBar), cfg))
+		lines = append(lines, row("Battery", fmt.Sprintf("%.0f%% %s %s", snapshot.Battery.Percent, snapshot.Battery.State, batteryBar(snapshot.Battery.Percent, 8, cfg)), cfg))
 	}
 
+	// base line count: 10 stats + coreRows-1 extra lines from grid + 1 battery (if present)
+	// + 1 hint line always added by caller
+	baseLines := len(lines) + coreRows - 1 + 1
+
+	// calculate how many optional sections fit
+	// processes section: 1 blank + len(procs) lines
+	// palette section: 1 blank + 1 palette line
+	procsLines := 0
 	if len(snapshot.TopProcs) > 0 {
+		procsLines = 1 + len(snapshot.TopProcs)
+	}
+	paletteLines := 2
+
+	showProcs := len(snapshot.TopProcs) > 0
+	showPalette := true
+
+	if height > 0 {
+		available := height - baseLines
+		if available < procsLines+paletteLines {
+			// not enough room for both, drop palette first
+			showPalette = false
+		}
+		if available < procsLines {
+			// still not enough, drop processes too
+			showProcs = false
+		}
+	}
+
+	if showProcs {
 		lines = append(lines, "", renderProcesses(snapshot.TopProcs, cfg))
 	}
 
-	lines = append(lines, "", palette(cfg))
+	if showPalette {
+		lines = append(lines, "", palette(cfg))
+	}
+
 	return strings.Join(lines, "\n")
 }
 
