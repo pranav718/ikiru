@@ -1,6 +1,6 @@
 package main
 
-import "github.com/pranavray/ikiru/cmd"
+import "github.com/pranav718/ikiru/cmd"
 
 func main() {
 	cmd.Execute()

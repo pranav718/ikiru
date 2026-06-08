@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/pranavray/ikiru/internal/stats"
-	"github.com/pranavray/ikiru/internal/theme"
+	"github.com/pranav718/ikiru/internal/stats"
+	"github.com/pranav718/ikiru/internal/theme"
 )
 
 func RenderLayout(snapshot, prevSnap Snapshot, cfg Config, width, height int, hint string) string {

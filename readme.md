@@ -19,7 +19,7 @@ a live system vitals tui written in go. two-column layout with ascii art and rea
 ## install
 
 ```sh
-go install github.com/pranavray/ikiru@latest
+go install github.com/pranav718/ikiru@latest
 ```
 
 ## usage
@@ -61,7 +61,7 @@ q          quit
 ## build from source
 
 ```sh
-git clone https://github.com/pranavray/ikiru.git
+git clone https://github.com/pranav718/ikiru.git
 cd ikiru
 go build -o ikiru .
 ./ikiru

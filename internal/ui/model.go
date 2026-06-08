@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/pranavray/ikiru/internal/stats"
+	"github.com/pranav718/ikiru/internal/stats"
 )
 
 type Config struct {

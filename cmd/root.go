@@ -7,7 +7,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/pranavray/ikiru/internal/ui"
+	"github.com/pranav718/ikiru/internal/ui"
 	"github.com/spf13/cobra"
 )
 
